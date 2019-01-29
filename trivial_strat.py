@@ -35,7 +35,7 @@ from topics import *
 
 class TrivialStrategy(Strategy):
 
-    def __init__(self, abroker, mex_sym):
+    def __init__(self, abroker, mex_sym, order_qty, zoff):
         setup_logger(logger_name=__name__, log_file=__name__ + '.log')
         self.log = logging.getLogger(__name__)
         self.log.info('marb strategy')
@@ -44,9 +44,9 @@ class TrivialStrategy(Strategy):
 
         self.book_mex = None
         self.pos_qty = 0
-        self.dif_wmid = 0
-
-        self.order_qty = 5
+        self.zoff = zoff
+        
+        self.order_qty = order_qty
 
         super().__init__(abroker, mex_sym)  
 
@@ -76,7 +76,7 @@ class TrivialStrategy(Strategy):
         buyorder = None
         sellorder = None
         
-        oq = 3.0 #offset parameter in $
+        oq = self.zoff #offset parameter in $
 
         qty = self.order_qty
         target_price = self.round_tick(FV - oq) # offset from mid
@@ -91,8 +91,14 @@ class TrivialStrategy(Strategy):
         return [buyorder, sellorder]
 
     def replace_order(self, old_order, new_order):
-        self.cancel(old_order['orderId'])
+        oid = old_order['orderID']
+        result = self.abroker.cancel_order(oid, exc.BITMEX)
+        return result
         #self.submit_order(new_order)
+
+    def order_str(self, o):
+        s = "%s %5.3f %5.3f"%(o['side'],o['orderQty'],o['price'])
+        return s
 
     def handle_no_position(self):
         self.log.info("handle_no_position")
@@ -101,29 +107,14 @@ class TrivialStrategy(Strategy):
         #TODO adjust orders instead
         self.log.info("open orders %s"%str(self.oo))
         
+        buys = list(filter(lambda x: x['side']=='Buy', self.oo))
+        sells = list(filter(lambda x: x['side']=='Sell', self.oo))
+        [target_buyorder, target_sellorder] = target_orders
 
         # if existing orders adjust orders by checking against targets
-        if len(self.oo) > 0:
-            buys = list(filter(lambda x: x['side']=='Buy', self.oo))
-            sells = list(filter(lambda x: x['side']=='Sell', self.oo))
 
-            [target_buyorder, target_sellorder] = target_orders
 
-            for o in sells:
-                self.log.info("check order %s"%str(o))
-                dif = target_sellorder[2] - o['price']
-                self.log.info("order dif %s"%str(dif))
-                if dif >= 1:
-                    self.log.info("price too low. cancel")
-                    self.replace_order(o, target_sellorder)
-
-                elif dif <= -1:
-                    self.log.info("price too high. cancel")
-                    self.replace_order(o, target_sellorder)
-                    
-                else:
-                    self.log.info("price of existing order ok")
-
+        if len(buys) > 0:
             for o in buys:
                 self.log.info("check order %s"%str(o))
                 dif = target_buyorder[2] - o['price']
@@ -138,10 +129,26 @@ class TrivialStrategy(Strategy):
 
                 else:
                     self.log.info("price of existing order ok")
+        
+        if len(sells) > 0:
+            for o in sells:
+                self.log.info("check order %s"%self.order_str(o))
+                dif = target_sellorder[2] - o['price']
+                self.log.info("order dif %s"%str(dif))
+                if dif >= 1:
+                    self.log.info("price too low. cancel")
+                    self.replace_order(o, target_sellorder)
 
-        else:
-            # no existing orders - submit all
-            for order in target_orders:
+                elif dif <= -1:
+                    self.log.info("price too high. cancel")
+                    self.replace_order(o, target_sellorder)
+                    
+                else:
+                    self.log.info("price of existing order ok")
+
+                
+        if len(buys) == 0:
+            for order in [target_buyorder]:
                 #TODO cleanup order array to dict
                 ttype = order[0]
                 market = self.mex_sym
@@ -151,6 +158,21 @@ class TrivialStrategy(Strategy):
                 result = self.abroker.submit_order_post(order, exc.BITMEX)
                 self.log.info("order result %s"%str(result))
                 time.sleep(1)
+
+
+        if len(sells) == 0:
+            for order in [target_sellorder] :
+                #TODO cleanup order array to dict
+                ttype = order[0]
+                market = self.mex_sym
+                qty = order[1]
+                order_price = order[2]
+                order = [market,ttype,order_price,qty]
+                result = self.abroker.submit_order_post(order, exc.BITMEX)
+                self.log.info("order result %s"%str(result))
+                time.sleep(1)
+
+
            
     def handle_position(self):        
         #TODO same with skew
@@ -198,8 +220,7 @@ if __name__=='__main__':
         abroker = broker.Broker(setAuto=False)
         abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
         mex_sym = mex.instrument_btc_perp
-        #mex_sym = mex.instrument_btc_jun19
-        strategy = TrivialStrategy(abroker, mex_sym)
+        strategy = TrivialStrategy(abroker, mex_sym, order_qty=5, zoff=1.0)
         strategy.start()
         strategy.join()
     except Exception as e:

@@ -40,11 +40,8 @@ class Feeder(threading.Thread):
         mex_sym = mex.instrument_btc_perp
         self.mex_sym = mex_sym
 
-    def mex_get_book(self):
-        market = models.market_from("XBT","USD")   
-        smarket = models.conv_markets_to(market, exc.BITMEX) 
-        #smarket = "XRPH19"
-        book = self.abroker.afacade.get_orderbook(smarket, exc.BITMEX)
+    def get_book(self):        
+        book = self.abroker.afacade.get_orderbook(self.mex_sym, exc.BITMEX)
         return book
 
     def mex_position(self):
@@ -72,6 +69,14 @@ class Feeder(threading.Thread):
             oo = self.open_orders(exc.BITMEX)
             print ("SUB_TOPIC_ORDERS_BITMEX " ,oo)
             self.redisclient.publish(SUB_TOPIC_ORDERS_BITMEX, json.dumps({"topic":SUB_TOPIC_ORDERS_BITMEX,"data":oo}))
+
+            book = self.get_book()
+            self.redisclient.publish(SUB_TOPIC_MARKET_BOOK_BITMEX, json.dumps({"topic":SUB_TOPIC_MARKET_BOOK_BITMEX,"data":book}))
+
+
+            self.redisclient.publish(SUB_TOPIC_ORDERS_BITMEX, json.dumps({"topic":SUB_TOPIC_ORDERS_BITMEX,"data":oo}))
+
+            #book_util.display_book(self.book)
 
             time.sleep(5)
 

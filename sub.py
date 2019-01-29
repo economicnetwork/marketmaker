@@ -26,7 +26,7 @@ def sub_print():
     
     redis_client = redis.Redis(host='localhost', port=6379)
     p = redis_client.pubsub()   
-    #p.subscribe(SUB_TOPIC_MARKET_BOOKS)
+    p.subscribe(SUB_TOPIC_MARKET_BOOK_BITMEX)
     p.subscribe(SUB_TOPIC_POS_MEX)
     p.subscribe(SUB_TOPIC_ORDERS_BITMEX)
     while True:

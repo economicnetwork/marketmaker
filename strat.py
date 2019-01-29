@@ -182,4 +182,4 @@ class Strategy(threading.Thread):
             """
                 
             #!TODO fix high wait time. this is because orders will not update fast enough
-            time.sleep(2.0)
+            time.sleep(3.0)
