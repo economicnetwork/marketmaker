@@ -16,7 +16,7 @@ import archon.exchange.bitmex.timeseries as timeseries
 import archon.facade as facade
 import archon.model.models as models
 from archon.custom_logger import setup_logger, remove_loggers
-
+import archon.orders as orders
 from archon.util import *   
 
 import pandas as pd
@@ -53,78 +53,41 @@ class TrivialStrategy(Strategy):
     def calc_mid(self, book):
         mb = book['bids'][0]
         ma = book['asks'][0]
-        mtq = mb['quantity']+ma['quantity']
         mid = (mb['price'] + ma['price'])/2
-        return mid
-        
-    """
-    def cancel_buys(self):
-        self.update_orders()        
-        buys = list(filter(lambda x: x['direction']=='buy', self.oo))
-        for o in buys:
-            self.log.info("cancel %s"%str(o))
-            self.cancel(o['orderId'])
+        return mid     
 
-    def cancel_sells(self):
-        self.update_orders()
-        sells = list(filter(lambda x: x['direction']=='sell', self.oo))
-        for o in sells:
-            self.log.info("cancel %s"%str(o))
-            self.cancel(o['orderId'])
-    """
-
-    """
-    def cancel_sells_min(self, min, max):
-        self.update_orders()
-        for o in self.oo:
-            if o['direction'] == 'sell':
-                p = o['price']
-                
-                self.cancel(o['orderId'])
-    """
-    
-
-    def buy_at_topbid(self):
-        qty = self.order_qty
-        target_price = self.book['bids'][0]['price']
-        #self.abroker.buy(qty, target_price)
-
-    def sell_at_topask(self, qty):
-        #qty = self.order_qty
-        target_price = self.book['asks'][0]['price']
-        #self.abroker.submit(qty, target_price)
-
-    """
-    def submit_order(self, order):
-        self.log.info("submit_order %s"%str(order))
-        #import pdb
-        #pdb.set_trace()
-        time.sleep(0.1)
-        
-        if order[0] == "BUY":
-            self.buy(order[1],order[2])
-        elif order[0] == "SELL":            
-            self.sell(order[1],order[2])
-    """
+    def round_tick(self, price):
+        rest = price % 1
+        price_int = int(price)
+        if rest > 0.5:
+            return price_int + 0.5
+        else:
+            return price_int
         
     def calc_quotes(self):
-        """ calculate one buy and sell quote """
+        """ calculate one buy and sell quote
+        trivial offset from bid and ask"""
+
         da = self.book['asks'][0]['price']
         db = self.book['bids'][0]['price']
+
+        FV = self.calc_mid(self.book)
 
         buyorder = None
         sellorder = None
         
-        qty = self.order_qty            
-        target_price = da + 2.0
-        order = ["SELL", qty, target_price]
-        sellorder = order
+        oq = 3.0 #offset parameter in $
 
         qty = self.order_qty
-        target_price = db - 2.0
-        order = ["BUY", qty, target_price]
+        target_price = self.round_tick(FV - oq) # offset from mid
+        order = [orders.ORDER_SIDE_BUY, qty, target_price]
         buyorder = order
         
+        qty = self.order_qty            
+        target_price = self.round_tick(FV + oq) # offset from mid
+        order = [ orders.ORDER_SIDE_SELL, qty, target_price]
+        sellorder = order
+
         return [buyorder, sellorder]
 
     def replace_order(self, old_order, new_order):
@@ -136,12 +99,13 @@ class TrivialStrategy(Strategy):
         target_orders = self.calc_quotes()
         self.log.info("target orders %s"%target_orders)
         #TODO adjust orders instead
+        self.log.info("open orders %s"%str(self.oo))
         
 
         # if existing orders adjust orders by checking against targets
         if len(self.oo) > 0:
-            buys = list(filter(lambda x: x['direction']=='buy', self.oo))
-            sells = list(filter(lambda x: x['direction']=='sell', self.oo))
+            buys = list(filter(lambda x: x['side']=='Buy', self.oo))
+            sells = list(filter(lambda x: x['side']=='Sell', self.oo))
 
             [target_buyorder, target_sellorder] = target_orders
 
@@ -178,7 +142,14 @@ class TrivialStrategy(Strategy):
         else:
             # no existing orders - submit all
             for order in target_orders:
-                #self.submit_order(order)
+                #TODO cleanup order array to dict
+                ttype = order[0]
+                market = self.mex_sym
+                qty = order[1]
+                order_price = order[2]
+                order = [market,ttype,order_price,qty]
+                result = self.abroker.submit_order_post(order, exc.BITMEX)
+                self.log.info("order result %s"%str(result))
                 time.sleep(1)
            
     def handle_position(self):        

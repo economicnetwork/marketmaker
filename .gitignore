@@ -1,3 +1,4 @@
 *.toml
 log/
 __pycache__
+*.csv

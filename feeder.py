@@ -64,6 +64,7 @@ class Feeder(threading.Thread):
             #TODO position
 
             data = self.mex_position()
+            print ("pos ",data)
             if data == []: data = "No position"
             print ("SUB_TOPIC_POS_MEX ",data)
 

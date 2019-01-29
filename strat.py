@@ -71,6 +71,34 @@ class Strategy(threading.Thread):
                     oid = o['orderID']
                     result = self.abroker.cancel_order(oid, exc.BITMEX)
                     self.log.info(result)
+    
+    def cancel_buys(self):
+        self.update_orders()       
+        print (self.oo) 
+        buys = list(filter(lambda x: x['Side']=='Buy', self.oo))
+        for o in buys:
+            self.log.info("cancel %s"%str(o))
+            oid = o['orderID']
+            self.abroker.cancel_order(oid, exc.BITMEX)
+
+    def cancel_sells(self):
+        self.update_orders()
+        sells = list(filter(lambda x: x['side']=='Sell', self.oo))
+        for o in sells:
+            self.log.info("cancel %s"%str(o))
+            oid = o['orderID']
+            self.abroker.cancel_order(oid, exc.BITMEX)
+    
+
+    def buy_at_topbid(self):
+        qty = self.order_qty
+        target_price = self.book['bids'][0]['price']
+        #self.abroker.buy(qty, target_price)
+
+    def sell_at_topask(self, qty):
+        #qty = self.order_qty
+        target_price = self.book['asks'][0]['price']
+        #self.abroker.submit(qty, target_price)
 
     def clean_exit(self):
         self.log.info("clean exit")
@@ -153,5 +181,5 @@ class Strategy(threading.Thread):
                 self.handle_no_position(mid)
             """
                 
-
-            time.sleep(1.0)
+            #!TODO fix high wait time. this is because orders will not update fast enough
+            time.sleep(2.0)
