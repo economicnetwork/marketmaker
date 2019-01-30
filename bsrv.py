@@ -21,22 +21,17 @@ import logging
 import threading
 import time
 import redis
-from topics import *
 
 
 if __name__=='__main__':    
     try:
-        abroker = BrokerService(setAuto=True)
+        abroker = BrokerService(setAuto=True)        
         abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
-        r = abroker.get_redis()
-        print (r)
-        time.sleep(10)
-        book = abroker.get_orderbook(exc.BITMEX)
-        print (book)
+        time.sleep(1)
+        #r = abroker.get_redis()
+        #print (r)        
 
-        #abroker = broker.Broker(setAuto=False)
-        #abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
-
+        
         #f = Feeder(abroker)
         #f.start()
         #f.join()

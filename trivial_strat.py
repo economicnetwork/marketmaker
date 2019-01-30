@@ -60,12 +60,18 @@ class TrivialStrategy(Strategy):
 
     def round_tick(self, price):
         """ round to bitmex tick size of 0.50$ """
-        rest = price % 1
-        price_int = int(price)
-        if rest > 0.5:
-            return price_int + 0.5
-        else:
-            return price_int
+        ip = round(price,0)
+        if ip > price: ip=ip-1
+        rest = price - ip
+        r = -1             
+        if rest > 0.5 and rest <= 0.75:
+            r = ip + 0.5
+        elif rest > 0.75:
+            r = ip
+        elif rest <= 0.5:
+            r = ip
+        return r
+
         
     def calc_quotes(self):
         """ calculate one buy and sell quote
@@ -108,15 +114,15 @@ class TrivialStrategy(Strategy):
         target_orders = self.calc_quotes()
         self.log.info("target orders %s"%target_orders)
         #TODO adjust orders instead
-        self.log.info("open orders %s"%str(self.oo))
+        oo = abroker.openorders(exc.BITMEX)
+        self.log.info("open orders %s"%str(oo))
         
-        buys = list(filter(lambda x: x['side']=='Buy', self.oo))
-        sells = list(filter(lambda x: x['side']=='Sell', self.oo))
+        buys = list(filter(lambda x: x['side']=='Buy', oo))
+        sells = list(filter(lambda x: x['side']=='Sell', oo))
         [target_buyorder, target_sellorder] = target_orders
 
         # if existing orders adjust orders by checking against targets
-
-
+        
         if len(buys) > 0:
             for o in buys:
                 self.log.info("check order %s"%str(o))
@@ -174,6 +180,7 @@ class TrivialStrategy(Strategy):
                 result = self.abroker.submit_order_post(order, exc.BITMEX)
                 self.log.info("order result %s"%str(result))
                 time.sleep(1)
+        
 
 
            
@@ -189,17 +196,20 @@ class TrivialStrategy(Strategy):
         self.book = mexbook
         #self.update_orders()
 
-        book_util.display_book(self.book)
+        #book_util.display_book(self.book)
+        mid = self.calc_mid(self.book)
+        self.log.info("mid price %s"%str(mid))
 
-        """
-        got_max_position = False
-        #TODO get position as int
+        pos = abroker.position(exc.BITMEX)
+        self.pos_qty = int(pos[0]['currentQty'])
         
+        got_max_position = self.pos_qty > 50
+        oo = abroker.openorders(exc.BITMEX)
         self.log.info("finished setting data")
 
-        if len(self.oo)>4:
+        if len(oo)>4:
             self.log.info("too many orders")
-            self.cancel_all()
+            #self.cancel_all()
             self.alive_flag = False
             return
         
@@ -213,7 +223,7 @@ class TrivialStrategy(Strategy):
             
         else:
             self.handle_no_position()
-        """
+        
  
            
 
@@ -222,7 +232,8 @@ if __name__=='__main__':
     #atexit.register(clean_exit)
     
     try:
-        abroker = BrokerService(setAuto=True)
+        #assume service is running, this is just a proxy
+        abroker = BrokerService(setAuto=True,initFeeder=False)
         abroker.set_keys_exchange_file(exchanges=[exc.BITMEX])
         mex_sym = mex.instrument_btc_perp
         zoff = 1.0

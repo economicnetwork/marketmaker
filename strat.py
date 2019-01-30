@@ -57,7 +57,7 @@ class Strategy(threading.Thread):
         
     
     def cancel_all(self):     
-        oo = abroker.openorders(exc.BITMEX)
+        oo = self.abroker.openorders(exc.BITMEX)
         self.log.info(oo)
         if oo:
             if len(oo)>0:
