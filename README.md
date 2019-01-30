@@ -12,6 +12,12 @@ Simplifications
 * ignores inventory i.e. the position
 * no stoploss or any other risk measures
 
+## install instructions
+
+* install archon
+* run broker_serve.py
+* run simple_maker.py
+
 ## links
 
 * https://github.com/bitMEX/sample-market-maker
