@@ -6,7 +6,6 @@ import archon.config as config
 import traceback
 from datetime import datetime
 
-import archon.broker as broker
 import archon.exchange.exchanges as exc
 import archon.exchange.bitmex.bitmex as mex
 import archon.exchange.bitmex.book_util as book_util
@@ -28,7 +27,7 @@ import threading
 
 from abc import ABC, abstractmethod
 import redis
-from topics import *
+
 
 #TODO 
 #handle mex connection issues
@@ -55,15 +54,10 @@ class Strategy(threading.Thread):
         tbp,tap = topbid['price'],topask['price']
         mid = (tbp + tap)/2
         return mid
-    
-    def open_orders(self, e):
-        if e==exc.BITMEX:
-            raw = self.redis_client.get(REP_TOPIC_ORDERS_BITMEX)
-            oo = json.loads(raw.decode('utf-8'))            
-            return oo
+        
     
     def cancel_all(self):     
-        oo = self.open_orders(exc.BITMEX)
+        oo = abroker.openorders(exc.BITMEX)
         self.log.info(oo)
         if oo:
             if len(oo)>0:
@@ -73,17 +67,17 @@ class Strategy(threading.Thread):
                     self.log.info(result)
     
     def cancel_buys(self):
-        self.update_orders()       
-        print (self.oo) 
-        buys = list(filter(lambda x: x['Side']=='Buy', self.oo))
+        oo = abroker.openorders(exc.BITMEX)
+        print (oo) 
+        buys = list(filter(lambda x: x['Side']=='Buy', oo))
         for o in buys:
             self.log.info("cancel %s"%str(o))
             oid = o['orderID']
             self.abroker.cancel_order(oid, exc.BITMEX)
 
     def cancel_sells(self):
-        self.update_orders()
-        sells = list(filter(lambda x: x['side']=='Sell', self.oo))
+        oo = abroker.openorders(exc.BITMEX)
+        sells = list(filter(lambda x: x['side']=='Sell', oo))
         for o in sells:
             self.log.info("cancel %s"%str(o))
             oid = o['orderID']
@@ -116,11 +110,6 @@ class Strategy(threading.Thread):
     def handle_books(self, mexbook):
         pass     
 
-    def update_orders(self):
-        self.log.info("update orders")
-        raw = self.redis_client.get(REP_TOPIC_ORDERS_BITMEX)
-        self.oo = json.loads(raw.decode('utf-8'))
-
     def stop():
         self.alive_flag = False
 
@@ -129,7 +118,7 @@ class Strategy(threading.Thread):
         self.log.info("run strategy")
 
         #TODO cancel all at startup
-        self.cancel_all()
+        #self.cancel_all()
 
         #TODO poll exeuctions
         #handle execution
@@ -143,12 +132,12 @@ class Strategy(threading.Thread):
 
             # TODO check pnl
             # stoploss
+            print (type(self.abroker))
+            oo = self.abroker.openorders(exc.BITMEX)
+            self.log.info("oo %s"%str(oo))
+            self.log.info("oolen  %i"%len(oo))
 
-            self.update_orders()
-            self.log.info("oo %s"%str(self.oo))
-            self.log.info("oolen  %i"%len(self.oo))
-
-            if len(self.oo) > 2:
+            if len(oo) > 2:
                 #EXIT
                 self.cancel_all()
                 self.log.error("too many open orders")
@@ -156,11 +145,9 @@ class Strategy(threading.Thread):
                 return
                 #self.join()
 
-            raw = self.redis_client.get(REP_TOPIC_MARKET_BOOK_BITMEX)
-            mexbook = json.loads(raw.decode('utf-8'))
-            #print (mexbook)
-
-            self.handle_books(mexbook)
+            book = self.abroker.orderbook(exc.BITMEX)
+            
+            self.handle_books(book)
 
             
             #self.log.debug("book %s"%str(book))

@@ -8,7 +8,8 @@ import archon.config as config
 import traceback
 from datetime import datetime
 
-import archon.broker as broker
+#import archon.broker as broker
+from archon.brokersrv.brokerservice import BrokerService
 import archon.exchange.exchanges as exc
 import archon.exchange.bitmex.bitmex as mex
 import archon.exchange.bitmex.book_util as book_util
@@ -31,7 +32,6 @@ import threading
 from abc import ABC, abstractmethod    
 
 from strat import Strategy
-from topics import *
 
 class TrivialStrategy(Strategy):
 
@@ -42,10 +42,12 @@ class TrivialStrategy(Strategy):
         
         remove_loggers() 
 
+        # init data
         self.book_mex = None
         self.pos_qty = 0
-        self.zoff = zoff
-        
+
+        self.zoff = zoff # the offset in $
+        self.diff_cancel = 1.0 # cancel if diff is larger than this
         self.order_qty = order_qty
 
         super().__init__(abroker, mex_sym)  
@@ -57,6 +59,7 @@ class TrivialStrategy(Strategy):
         return mid     
 
     def round_tick(self, price):
+        """ round to bitmex tick size of 0.50$ """
         rest = price % 1
         price_int = int(price)
         if rest > 0.5:
@@ -135,11 +138,11 @@ class TrivialStrategy(Strategy):
                 self.log.info("check order %s"%self.order_str(o))
                 dif = target_sellorder[2] - o['price']
                 self.log.info("order dif %s"%str(dif))
-                if dif >= 1:
+                if dif >= self.diff_cancel:
                     self.log.info("price too low. cancel")
                     self.replace_order(o, target_sellorder)
 
-                elif dif <= -1:
+                elif dif <= -self.diff_cancel:
                     self.log.info("price too high. cancel")
                     self.replace_order(o, target_sellorder)
                     
@@ -180,14 +183,15 @@ class TrivialStrategy(Strategy):
 
     def handle_books(self, mexbook):
         self.log.info("handle books")
-        db = self.abroker.get_db()
-        db.books.insert_one({"orderbook":mexbook})  
+        #db = self.abroker.get_db()
+        #db.books.insert_one({"orderbook":mexbook})  
 
         self.book = mexbook
-        self.update_orders()
+        #self.update_orders()
 
         book_util.display_book(self.book)
 
+        """
         got_max_position = False
         #TODO get position as int
         
@@ -209,6 +213,7 @@ class TrivialStrategy(Strategy):
             
         else:
             self.handle_no_position()
+        """
  
            
 
@@ -217,10 +222,12 @@ if __name__=='__main__':
     #atexit.register(clean_exit)
     
     try:
-        abroker = broker.Broker(setAuto=False)
-        abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
+        abroker = BrokerService(setAuto=True)
+        abroker.set_keys_exchange_file(exchanges=[exc.BITMEX])
         mex_sym = mex.instrument_btc_perp
-        strategy = TrivialStrategy(abroker, mex_sym, order_qty=5, zoff=1.0)
+        zoff = 1.0
+        order_qty = 1.0
+        strategy = TrivialStrategy(abroker, mex_sym, order_qty, zoff)
         strategy.start()
         strategy.join()
     except Exception as e:
