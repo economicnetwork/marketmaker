@@ -13,7 +13,6 @@ from archon.util import *
 
 import pandas as pd
 import numpy
-
 import time
 import json
 import atexit
@@ -21,29 +20,29 @@ import logging
 import threading
 import time
 import redis
-from topics import *
+from archon.metrics import calc_mid_price
+from archon.model import models
+#from topics import *
 
 
 if __name__=='__main__':    
     try:
         abroker = BrokerService(setAuto=True,initFeeder=False)
         abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
-        book = abroker.orderbook(exc.BITMEX)        
-        print (book)
+        book = abroker.orderbook(exc.BITMEX)
+        book = models.conv_orderbook(book, exc.BITMEX)
+        mid = calc_mid_price(book) 
+        print ("bitmex mid",mid)
+        
         pos = abroker.position(exc.BITMEX)
-        print (pos[0]['currentQty'])
+        #print (pos)
+        print (pos[0]["currentQty"])
 
-        oo = abroker.openorders(exc.BITMEX)
-        print (oo)
+        #oo = abroker.openorders(exc.BITMEX)
+        #print (oo)
 
-        #abroker = broker.Broker(setAuto=False)
-        #abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
-
-        #f = Feeder(abroker)
-        #f.start()
-        #f.join()
     except Exception as e:
-        print (e)
+        print ("error ",e)
 
     
         
