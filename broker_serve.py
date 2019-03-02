@@ -6,6 +6,7 @@ import archon.exchange.bitmex.bitmex as mex
 import archon.facade as facade
 import archon.model.models as models
 from archon.brokersrv.brokerservice import BrokerService
+from archon.brokersrv.feeder import Feeder
 
 from archon.custom_logger import setup_logger, remove_loggers
 
@@ -25,16 +26,14 @@ import redis
 
 if __name__=='__main__':    
     try:
+        #setup service
+        #this will init feeder to redis
         abroker = BrokerService(setAuto=True)        
         abroker.set_keys_exchange_file(exchanges=[exc.BITMEX]) 
         time.sleep(1)
         #r = abroker.get_redis()
-        #print (r)        
-
+        #print (r)
         
-        #f = Feeder(abroker)
-        #f.start()
-        #f.join()
     except Exception as e:
         print (e)
 
