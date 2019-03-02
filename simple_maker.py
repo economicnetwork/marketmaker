@@ -53,8 +53,13 @@ class TrivialStrategy(Strategy):
         super().__init__(abroker, mex_sym)  
 
     def calc_mid(self, book):
-        mb = book['bids'][0]
-        ma = book['asks'][0]
+        print (book)
+        bids = list(filter(lambda x: x['side']=='Buy', book))
+        asks = list(filter(lambda x: x['side']=='Sell', book))
+        print (">>>> " ,bids[0])
+        #, asks)
+        mb = bids[0]
+        ma = asks[0]
         mid = (mb['price'] + ma['price'])/2
         return mid     
 
@@ -77,8 +82,10 @@ class TrivialStrategy(Strategy):
         """ calculate one buy and sell quote
         trivial offset from bid and ask"""
 
-        da = self.book['asks'][0]['price']
-        db = self.book['bids'][0]['price']
+        bids = list(filter(lambda x: x['side']=='Buy', self.book))
+        asks = list(filter(lambda x: x['side']=='Sell', self.book))
+        da = asks[0]['price']
+        db = bids[0]['price']
 
         FV = self.calc_mid(self.book)
 
