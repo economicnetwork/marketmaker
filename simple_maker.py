@@ -14,7 +14,7 @@ import archon.exchange.exchanges as exc
 import archon.exchange.bitmex.bitmex as mex
 import archon.exchange.bitmex.book_util as book_util
 import archon.exchange.bitmex.timeseries as timeseries
-import archon.facade as facade
+import archon.broker.facade as facade
 import archon.model.models as models
 from archon.custom_logger import setup_logger, remove_loggers
 import archon.orders as orders
@@ -187,9 +187,6 @@ class TrivialStrategy(Strategy):
                 result = self.abroker.submit_order_post(order, exc.BITMEX)
                 self.log.info("order result %s"%str(result))
                 time.sleep(1)
-        
-
-
            
     def handle_position(self):        
         #TODO same with skew
@@ -208,7 +205,10 @@ class TrivialStrategy(Strategy):
         self.log.info("mid price %s"%str(mid))
 
         pos = abroker.position(exc.BITMEX)
-        self.pos_qty = int(pos[0]['currentQty'])
+        try:
+            self.pos_qty = int(pos[0]['currentQty'])
+        except:
+            self.pos_qty = 0
         
         got_max_position = self.pos_qty > 50
         oo = abroker.openorders(exc.BITMEX)
@@ -231,7 +231,6 @@ class TrivialStrategy(Strategy):
         else:
             self.handle_no_position()
         
- 
            
 
 if __name__=='__main__':
