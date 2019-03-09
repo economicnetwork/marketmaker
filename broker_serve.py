@@ -6,21 +6,8 @@ import archon.exchange.bitmex.bitmex as mex
 import archon.model.models as models
 from archon.brokersrv.brokerservice import BrokerService
 from archon.brokersrv.feeder import Feeder
-
 from archon.util.custom_logger import setup_logger, remove_loggers
-
 from archon.util import *   
-
-import pandas as pd
-import numpy
-
-import time
-import json
-import atexit
-import logging
-import threading
-import time
-import redis
 
 
 if __name__=='__main__':    
